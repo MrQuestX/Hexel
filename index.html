@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#1a1a2e">
+  <title>Hexel Art Maker</title>
+  <style>
+    :root {
+      --bg: #1a1a2e;
+      --panel: #16213e;
+      --accent: #0f3460;
+      --text: #eaeaea;
+      --highlight: #e94560;
+      --border: #0f3460;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+      --safe-top: env(safe-area-inset-top, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      height: 100%; height: 100dvh; overflow: hidden;
+      touch-action: none; overscroll-behavior: none;
+      -webkit-user-select: none; user-select: none;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg); color: var(--text);
+      display: flex; flex-direction: column;
+      padding-top: var(--safe-top);
+    }
+    header {
+      background: var(--panel); padding: 8px 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 20;
+    }
+    header h1 { font-size: 1.05rem; font-weight: 600; }
+    header .subtitle { font-size: 0.68rem; opacity: 0.5; margin-left: 6px; }
+    .header-btns { display: flex; gap: 6px; }
+    .icon-btn {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: var(--accent); border: none; color: var(--text);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.15rem; cursor: pointer;
+    }
+    .icon-btn:active { background: #1a4a7a; }
+
+    .main { flex: 1; display: flex; overflow: hidden; position: relative; min-height: 0; }
+    .canvas-wrap {
+      flex: 1; position: relative; overflow: hidden;
+      background: #0d0d1a; min-height: 0;
+    }
+    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+    .sidebar {
+      width: 270px; background: var(--panel); border-right: 1px solid var(--border);
+      padding: 12px; display: flex; flex-direction: column; gap: 12px;
+      overflow-y: auto; flex-shrink: 0; -webkit-overflow-scrolling: touch;
+    }
+
+    .mobile-bar {
+      display: none; background: var(--panel); border-top: 1px solid var(--border);
+      padding: 6px 8px calc(6px + var(--safe-bottom));
+      flex-direction: column; gap: 6px; z-index: 30; flex-shrink: 0;
+    }
+    .mobile-tools { display: flex; gap: 4px; flex-wrap: wrap; }
+    .mobile-tools .tool-btn { flex: 1 1 28%; padding: 9px 2px; font-size: 0.62rem; min-height: 48px; }
+    .mobile-color-row { display: flex; align-items: center; gap: 6px; }
+    .mobile-color-row input[type="color"] {
+      width: 38px; height: 38px; border-radius: 8px; border: none; padding: 0; background: none; flex-shrink: 0;
+    }
+    .mobile-color-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    .mobile-color-row input[type="color"]::-webkit-color-swatch { border: 2px solid #fff; border-radius: 6px; }
+    .mobile-swatches {
+      display: flex; gap: 4px; overflow-x: auto; flex: 1; padding: 2px 0;
+      -webkit-overflow-scrolling: touch;
+    }
+    .mobile-swatches .swatch { width: 28px; height: 28px; border-radius: 6px; flex-shrink: 0; border: 2px solid transparent; }
+    .mobile-swatches .swatch.active { border-color: #fff; }
+    .mobile-actions { display: flex; gap: 4px; }
+    .mobile-actions .btn { flex: 1; padding: 8px 4px; font-size: 0.7rem; min-height: 38px; }
+
+    .section { display: flex; flex-direction: column; gap: 6px; }
+    .section-title {
+      font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px;
+      opacity: 0.5; font-weight: 600;
+    }
+    .tools { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+    .tool-btn {
+      background: var(--accent); border: 2px solid transparent; color: var(--text);
+      padding: 8px 3px; border-radius: 9px; cursor: pointer; font-size: 0.65rem;
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+    }
+    .tool-btn:active, .tool-btn.active { border-color: var(--highlight); background: #1a3a5c; }
+    .tool-btn svg, .tool-btn .icon { font-size: 1.15rem; line-height: 1; }
+
+    .color-row { display: flex; gap: 6px; align-items: center; }
+    input[type="color"] {
+      width: 42px; height: 42px; border: none; border-radius: 9px;
+      cursor: pointer; background: none; padding: 0;
+    }
+    input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+    input[type="color"]::-webkit-color-swatch { border: 2px solid #fff; border-radius: 7px; }
+    .current-color {
+      flex: 1; height: 42px; border-radius: 9px; border: 2px solid #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.62rem; font-family: monospace; text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    }
+    .palette { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+    .swatch { aspect-ratio: 1; border-radius: 5px; cursor: pointer; border: 2px solid transparent; }
+    .swatch.active { border-color: #fff; }
+
+    .controls { display: flex; flex-direction: column; gap: 8px; }
+    label { font-size: 0.78rem; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    input[type="range"] { width: 100%; accent-color: var(--highlight); height: 26px; }
+    input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--highlight); }
+
+    .btn-row { display: flex; gap: 5px; flex-wrap: wrap; }
+    .btn {
+      background: var(--accent); border: none; color: var(--text);
+      padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 0.75rem;
+      flex: 1; min-width: 60px; min-height: 40px;
+    }
+    .btn:active { background: #1a4a7a; }
+    .btn.danger { background: #5c1a1a; }
+    .btn.danger:active { background: #7a2222; }
+    .btn.primary { background: var(--highlight); }
+    .btn.primary:active { background: #ff6b81; }
+    .btn:disabled { opacity: 0.4; pointer-events: none; }
+
+    .info { font-size: 0.62rem; opacity: 0.5; line-height: 1.35; }
+    .status {
+      position: absolute; bottom: 8px; left: 8px;
+      background: rgba(0,0,0,0.75); padding: 4px 8px; border-radius: 6px;
+      font-size: 0.68rem; font-family: monospace; pointer-events: none; z-index: 5;
+    }
+    .stamp-preview {
+      position: absolute; top: 8px; right: 8px;
+      background: rgba(0,0,0,0.8); padding: 6px 10px; border-radius: 8px;
+      font-size: 0.68rem; z-index: 5; display: none; max-width: 120px;
+    }
+    .stamp-preview canvas { width: 100%; height: auto; border-radius: 4px; margin-top: 4px; display: block; }
+
+    .sheet-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 40; opacity: 0; transition: opacity 0.2s;
+    }
+    .sheet-overlay.open { display: block; opacity: 1; }
+    .sheet {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      background: var(--panel); border-radius: 18px 18px 0 0;
+      padding: 14px 14px calc(14px + var(--safe-bottom));
+      z-index: 50; transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      max-height: 80vh; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+    .sheet.open { transform: translateY(0); }
+    .sheet-handle { width: 36px; height: 4px; background: #ffffff44; border-radius: 2px; margin: 0 auto 12px; }
+    .sheet h2 { font-size: 1rem; margin-bottom: 12px; text-align: center; }
+
+    .stamp-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+    .stamp-thumb {
+      width: 60px; height: 60px; border-radius: 8px; background: #0d0d1a;
+      border: 2px solid var(--border); cursor: pointer; overflow: hidden;
+      position: relative; display: flex; align-items: center; justify-content: center;
+    }
+    .stamp-thumb.active { border-color: var(--highlight); }
+    .stamp-thumb canvas { max-width: 100%; max-height: 100%; }
+    .stamp-thumb .del {
+      position: absolute; top: 1px; right: 1px; width: 18px; height: 18px;
+      background: #e94560; border: none; border-radius: 50%; color: #fff;
+      font-size: 12px; line-height: 1; padding: 0; display: none;
+    }
+    .stamp-thumb:hover .del, .stamp-thumb:active .del { display: flex; align-items: center; justify-content: center; }
+
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .mobile-bar { display: flex; }
+      header h1 .subtitle { display: none; }
+    }
+    @media (min-width: 769px) {
+      .mobile-bar { display: none !important; }
+      #settingsBtn { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⬡ Hexel Art Maker <span class="subtitle">endless · stamps</span></h1>
+    <div class="header-btns">
+      <button class="icon-btn" id="settingsBtn" title="Settings">⚙️</button>
+    </div>
+  </header>
+
+  <div class="main">
+    <aside class="sidebar">
+      <div class="section">
+        <div class="section-title">Tools</div>
+        <div class="tools" id="desktopTools"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Color</div>
+        <div class="color-row">
+          <input type="color" id="colorPicker" value="#e94560">
+          <div class="current-color" id="currentColorDisplay" style="background:#e94560">#e94560</div>
+        </div>
+        <div class="palette" id="palette"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">View</div>
+        <div class="controls">
+          <label>Hex Size <span id="sizeVal">24</span></label>
+          <input type="range" id="hexSize" min="10" max="48" value="24">
+          <label style="justify-content:flex-start;gap:10px">
+            <input type="checkbox" id="showGrid" checked> Grid lines
+          </label>
+        </div>
+      </div>
+      <div class="section">
+        <div class="section-title">Stamps</div>
+        <div class="btn-row">
+          <button class="btn" id="saveStampBtn" disabled>Save Selection → Stamp</button>
+        </div>
+        <div class="stamp-list" id="stampList"></div>
+      </div>
+      <div class="section">
+        <div class="section-title">Actions</div>
+        <div class="btn-row">
+          <button class="btn" id="undoBtn">Undo</button>
+          <button class="btn" id="redoBtn">Redo</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn danger" id="clearBtn">Clear All</button>
+          <button class="btn primary" id="exportBtn">Export PNG</button>
+        </div>
+      </div>
+      <div class="info">
+        Endless canvas · Two-finger pan & pinch-zoom<br>
+        Select tool → drag rectangle → Save as Stamp<br>
+        Stamp tool places the active stamp at tap
+      </div>
+    </aside>
+
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+      <div class="status" id="status">zoom 100% · 0 hexes</div>
+      <div class="stamp-preview" id="stampPreview">
+        <div>Active stamp</div>
+        <canvas id="stampPreviewCanvas" width="80" height="80"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-bar">
+    <div class="mobile-tools" id="mobileTools"></div>
+    <div class="mobile-color-row">
+      <input type="color" id="mobileColorPicker" value="#e94560">
+      <div class="mobile-swatches" id="mobileSwatches"></div>
+    </div>
+    <div class="mobile-actions">
+      <button class="btn" id="mUndo">Undo</button>
+      <button class="btn" id="mRedo">Redo</button>
+      <button class="btn" id="mSaveStamp" disabled>Stamp+</button>
+      <button class="btn primary" id="mExport">Export</button>
+    </div>
+  </div>
+
+  <div class="sheet-overlay" id="sheetOverlay"></div>
+  <div class="sheet" id="settingsSheet">
+    <div class="sheet-handle"></div>
+    <h2>Settings & Stamps</h2>
+    <div class="controls" style="gap:12px">
+      <label>Hex Size <span id="mSizeVal">24</span></label>
+      <input type="range" id="mHexSize" min="10" max="48" value="24">
+      <label style="justify-content:flex-start;gap:12px">
+        <input type="checkbox" id="mShowGrid" checked> Show grid lines
+      </label>
+    </div>
+    <div class="section" style="margin-top:16px">
+      <div class="section-title">Your Stamps</div>
+      <div class="stamp-list" id="mStampList"></div>
+      <button class="btn" id="mSaveStampSheet" disabled style="margin-top:8px;width:100%">Save Selection as Stamp</button>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn danger" id="mClear">Clear All</button>
+      <button class="btn primary" id="closeSheet">Done</button>
+    </div>
+  </div>
+
+  <script>
+    // ========== Hex math (flat-top) ==========
+    const SQRT3 = Math.sqrt(3);
+
+    function hexToPixel(q, r, size) {
+      return { x: size * 1.5 * q, y: size * (SQRT3/2 * q + SQRT3 * r) };
+    }
+
+    function pixelToHex(px, py, size) {
+      const q = (2/3 * px) / size;
+      const r = (-1/3 * px + SQRT3/3 * py) / size;
+      return hexRound(q, r);
+    }
+
+    function hexRound(q, r) {
+      let s = -q - r;
+      let rq = Math.round(q), rr = Math.round(r), rs = Math.round(s);
+      const qDiff = Math.abs(rq - q), rDiff = Math.abs(rr - r), sDiff = Math.abs(rs - s);
+      if (qDiff > rDiff && qDiff > sDiff) rq = -rr - rs;
+      else if (rDiff > sDiff) rr = -rq - rs;
+      return { q: rq, r: rr };
+    }
+
+    function hexCorners(cx, cy, size) {
+      const corners = [];
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 180) * (60 * i);
+        corners.push({ x: cx + size * Math.cos(a), y: cy + size * Math.sin(a) });
+      }
+      return corners;
+    }
+
+    function key(q, r) { return q + ',' + r; }
+    function parseKey(k) {
+      const [q, r] = k.split(',').map(Number);
+      return { q, r };
+    }
+
+    // ========== State ==========
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+
+    let hexSize = 24;
+    let showGrid = true;
+    let currentColor = '#e94560';
+    let tool = 'pencil';
+    let cells = new Map();
+    let history = [];
+    let historyIndex = -1;
+    const MAX_HISTORY = 40;
+
+    let camX = 0, camY = 0, zoom = 1;
+    const MIN_ZOOM = 0.2, MAX_ZOOM = 5;
+
+    let selectStart = null, selectEnd = null;
+    let selection = new Set();
+
+    let stamps = [];
+    let activeStampId = null;
+    let nextStampId = 1;
+
+    let isDrawing = false;
+    let lastHex = null;
+    let pointers = new Map();
+    let pinchStart = null;
+
+    const defaultPalette = [
+      '#000000','#ffffff','#e94560','#0f3460','#16213e',
+      '#53d8fb','#f9c74f','#90be6d','#f94144','#f3722c',
+      '#43aa8b','#577590','#9b5de5','#f15bb5','#00bbf9',
+      '#fee440','#8ecae6','#219ebc','#023047','#ffb703'
+    ];
+
+    const toolDefs = [
+      { id: 'pencil', label: 'Pencil', icon: '✏️' },
+      { id: 'eraser', label: 'Eraser', icon: '🧹' },
+      { id: 'fill', label: 'Fill', icon: '🪣' },
+      { id: 'eyedropper', label: 'Pick', icon: '💉' },
+      { id: 'select', label: 'Select', icon: '⬚' },
+      { id: 'stamp', label: 'Stamp', icon: '📌' }
+    ];
+
+    // ========== UI ==========
+    function buildTools(container) {
+      container.innerHTML = '';
+      toolDefs.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'tool-btn' + (t.id === tool ? ' active' : '');
+        btn.dataset.tool = t.id;
+        btn.innerHTML = `<span class="icon">${t.icon}</span>${t.label}`;
+        btn.addEventListener('click', () => setTool(t.id));
+        container.appendChild(btn);
+      });
+    }
+    buildTools(document.getElementById('desktopTools'));
+    buildTools(document.getElementById('mobileTools'));
+
+    function buildPalette(container) {
+      container.innerHTML = '';
+      defaultPalette.forEach(c => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch' + (c === currentColor ? ' active' : '');
+        sw.style.background = c;
+        sw.dataset.color = c;
+        sw.addEventListener('click', () => setColor(c));
+        container.appendChild(sw);
+      });
+    }
+    buildPalette(document.getElementById('palette'));
+    buildPalette(document.getElementById('mobileSwatches'));
+
+    function setColor(c) {
+      currentColor = c;
+      document.getElementById('colorPicker').value = c;
+      document.getElementById('mobileColorPicker').value = c;
+      const disp = document.getElementById('currentColorDisplay');
+      if (disp) { disp.style.background = c; disp.textContent = c; }
+      document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.color === c));
+    }
+    document.getElementById('colorPicker').addEventListener('input', e => setColor(e.target.value));
+    document.getElementById('mobileColorPicker').addEventListener('input', e => setColor(e.target.value));
+
+    function setTool(t) {
+      tool = t;
+      document.querySelectorAll('.tool-btn').forEach(b => b.classList.toggle('active', b.dataset.tool === t));
+      updateStampButtons();
+      draw();
+    }
+
+    function setHexSize(v) {
+      hexSize = v;
+      document.getElementById('sizeVal').textContent = v;
+      document.getElementById('mSizeVal').textContent = v;
+      document.getElementById('hexSize').value = v;
+      document.getElementById('mHexSize').value = v;
+      draw();
+    }
+    document.getElementById('hexSize').addEventListener('input', e => setHexSize(+e.target.value));
+    document.getElementById('mHexSize').addEventListener('input', e => setHexSize(+e.target.value));
+
+    document.getElementById('showGrid').addEventListener('change', e => {
+      showGrid = e.target.checked;
+      document.getElementById('mShowGrid').checked = showGrid;
+      draw();
+    });
+    document.getElementById('mShowGrid').addEventListener('change', e => {
+      showGrid = e.target.checked;
+      document.getElementById('showGrid').checked = showGrid;
+      draw();
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', doClear);
+    document.getElementById('mClear').addEventListener('click', doClear);
+    document.getElementById('exportBtn').addEventListener('click', exportPNG);
+    document.getElementById('mExport').addEventListener('click', exportPNG);
+    document.getElementById('undoBtn').addEventListener('click', undo);
+    document.getElementById('mUndo').addEventListener('click', undo);
+    document.getElementById('redoBtn').addEventListener('click', redo);
+    document.getElementById('mRedo').addEventListener('click', redo);
+    document.getElementById('saveStampBtn').addEventListener('click', saveSelectionAsStamp);
+    document.getElementById('mSaveStamp').addEventListener('click', saveSelectionAsStamp);
+    document.getElementById('mSaveStampSheet').addEventListener('click', saveSelectionAsStamp);
+
+    function doClear() {
+      if (!confirm('Clear the entire endless canvas?')) return;
+      pushHistory();
+      cells.clear();
+      selection.clear();
+      selectStart = selectEnd = null;
+      draw();
+    }
+
+    const sheet = document.getElementById('settingsSheet');
+    const overlay = document.getElementById('sheetOverlay');
+    document.getElementById('settingsBtn').addEventListener('click', () => {
+      sheet.classList.add('open'); overlay.classList.add('open');
+      renderStampList();
+    });
+    function closeSheet() { sheet.classList.remove('open'); overlay.classList.remove('open'); }
+    document.getElementById('closeSheet').addEventListener('click', closeSheet);
+    overlay.addEventListener('click', closeSheet);
+
+    document.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      const k = e.key.toLowerCase();
+      if (k === 'p') setTool('pencil');
+      else if (k === 'e') setTool('eraser');
+      else if (k === 'f') setTool('fill');
+      else if (k === 'i') setTool('eyedropper');
+      else if (k === 's') setTool('select');
+      else if (k === 't') setTool('stamp');
+      else if ((e.ctrlKey || e.metaKey) && k === 'z') { e.preventDefault(); undo(); }
+      else if ((e.ctrlKey || e.metaKey) && k === 'y') { e.preventDefault(); redo(); }
+      else if (k === 'escape') { selection.clear(); selectStart = selectEnd = null; updateStampButtons(); draw(); }
+    });
+
+    function pushHistory() {
+      history = history.slice(0, historyIndex + 1);
+      history.push(new Map(cells));
+      if (history.length > MAX_HISTORY) history.shift();
+      else historyIndex++;
+    }
+    function undo() {
+      if (historyIndex <= 0) return;
+      historyIndex--;
+      cells = new Map(history[historyIndex]);
+      draw();
+    }
+    function redo() {
+      if (historyIndex >= history.length - 1) return;
+      historyIndex++;
+      cells = new Map(history[historyIndex]);
+      draw();
+    }
+
+    // ========== Camera ==========
+    function resizeCanvas() {
+      const wrap = canvas.parentElement;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.floor(wrap.clientWidth * dpr);
+      canvas.height = Math.floor(wrap.clientHeight * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      draw();
+    }
+    window.addEventListener('resize', resizeCanvas);
+
+    function screenToWorld(sx, sy) {
+      const rect = canvas.getBoundingClientRect();
+      const x = sx - rect.left;
+      const y = sy - rect.top;
+      return { x: (x - camX) / zoom, y: (y - camY) / zoom };
+    }
+
+    function worldToScreen(wx, wy) {
+      return { x: wx * zoom + camX, y: wy * zoom + camY };
+    }
+
+    function getVisibleHexRange() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      const corners = [
+        screenToWorld(0, 0), screenToWorld(w, 0),
+        screenToWorld(0, h), screenToWorld(w, h)
+      ];
+      let minQ = Infinity, maxQ = -Infinity, minR = Infinity, maxR = -Infinity;
+      for (const c of corners) {
+        const hx = pixelToHex(c.x, c.y, hexSize);
+        minQ = Math.min(minQ, hx.q - 2);
+        maxQ = Math.max(maxQ, hx.q + 2);
+        minR = Math.min(minR, hx.r - 2);
+        maxR = Math.max(maxR, hx.r + 2);
+      }
+      return { minQ, maxQ, minR, maxR };
+    }
+
+    // ========== Draw ==========
+    function draw() {
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = '#0d0d1a';
+      ctx.fillRect(0, 0, w, h);
+
+      const { minQ, maxQ, minR, maxR } = getVisibleHexRange();
+      const size = hexSize * zoom;
+
+      if (showGrid && zoom > 0.35) {
+        ctx.strokeStyle = '#ffffff14';
+        ctx.lineWidth = 1;
+        for (let q = minQ; q <= maxQ; q++) {
+          for (let r = minR; r <= maxR; r++) {
+            const { x, y } = hexToPixel(q, r, hexSize);
+            const s = worldToScreen(x, y);
+            const corners = hexCorners(s.x, s.y, size * 0.97);
+            ctx.beginPath();
+            ctx.moveTo(corners[0].x, corners[0].y);
+            for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+            ctx.closePath();
+            ctx.stroke();
+          }
+        }
+      }
+
+      for (const [k, color] of cells) {
+        const { q, r } = parseKey(k);
+        if (q < minQ || q > maxQ || r < minR || r > maxR) continue;
+        const { x, y } = hexToPixel(q, r, hexSize);
+        const s = worldToScreen(x, y);
+        const corners = hexCorners(s.x, s.y, size * 0.97);
+        ctx.beginPath();
+        ctx.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        if (showGrid && zoom > 0.5) {
+          ctx.strokeStyle = '#ffffff20';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+
+      // Selection
+      const sel = selection.size > 0 ? selection :
+        (selectStart && selectEnd ? computeSelectionSet(selectStart, selectEnd) : null);
+      if (sel && sel.size) {
+        ctx.strokeStyle = '#53d8fb';
+        ctx.lineWidth = 2.5;
+        ctx.setLineDash([5, 3]);
+        for (const k of sel) {
+          const { q, r } = parseKey(k);
+          const { x, y } = hexToPixel(q, r, hexSize);
+          const s = worldToScreen(x, y);
+          const corners = hexCorners(s.x, s.y, size * 0.97);
+          ctx.beginPath();
+          ctx.moveTo(corners[0].x, corners[0].y);
+          for (let i = 1; i < 6; i++) ctx.lineTo(corners[i].x, corners[i].y);
+          ctx.closePath();
+          ctx.stroke();
+        }
+        ctx.setLineDash([]);
+      }
+
+      statusEl.textContent = `zoom ${Math.round(zoom * 100)}% · ${cells.size} hexes`;
+    }
+
+    function computeSelectionSet(a, b) {
+      const set = new Set();
+      if (!a || !b) return set;
+      const minQ = Math.min(a.q, b.q), maxQ = Math.max(a.q, b.q);
+      const minR = Math.min(a.r, b.r), maxR = Math.max(a.r, b.r);
+      for (let q = minQ; q <= maxQ; q++)
+        for (let r = minR; r <= maxR; r++)
+          set.add(key(q, r));
+      return set;
+    }
+
+    function updateStampButtons() {
+      const has = selection.size > 0;
+      document.getElementById('saveStampBtn').disabled = !has;
+      document.getElementById('mSaveStamp').disabled = !has;
+      document.getElementById('mSaveStampSheet').disabled = !has;
+    }
+
+    function saveSelectionAsStamp() {
+      if (selection.size === 0) return;
+      let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
+      const relative = new Map();
+      for (const k of selection) {
+        const { q, r } = parseKey(k);
+        minQ = Math.min(minQ, q); minR = Math.min(minR, r);
+        maxQ = Math.max(maxQ, q); maxR = Math.max(maxR, r);
+        const color = cells.get(k);
+        if (color) relative.set(key(q - minQ, r - minR), color);
+      }
+      if (relative.size === 0) {
+        alert('Selection has no painted hexes.');
+        return;
+      }
+      const stamp = {
+        id: nextStampId++,
+        cells: relative,
+        w: maxQ - minQ + 1,
+        h: maxR - minR + 1
+      };
+      stamps.push(stamp);
+      activeStampId = stamp.id;
+      selection.clear();
+      selectStart = selectEnd = null;
+      renderStampList();
+      updateStampButtons();
+      setTool('stamp');
+      document.getElementById('stampPreview').style.display = 'block';
+      drawStampPreview(stamp);
+      draw();
+    }
+
+    function drawStampPreview(stamp) {
+      const c = document.getElementById('stampPreviewCanvas');
+      const cx = c.getContext('2d');
+      const size = 7;
+      c.width = Math.max(40, stamp.w * size * 1.55 + 10);
+      c.height = Math.max(40, stamp.h * size * 1.75 + 10);
+      cx.fillStyle = '#111';
+      cx.fillRect(0, 0, c.width, c.height);
+      for (const [k, color] of stamp.cells) {
+        const { q, r } = parseKey(k);
+        const { x, y } = hexToPixel(q, r, size);
+        const corners = hexCorners(x + 8, y + 8, size * 0.95);
+        cx.beginPath();
+        cx.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < 6; i++) cx.lineTo(corners[i].x, corners[i].y);
+        cx.closePath();
+        cx.fillStyle = color;
+        cx.fill();
+      }
+    }
+
+    function renderStampList() {
+      [document.getElementById('stampList'), document.getElementById('mStampList')].forEach(list => {
+        if (!list) return;
+        list.innerHTML = '';
+        stamps.forEach(st => {
+          const div = document.createElement('div');
+          div.className = 'stamp-thumb' + (st.id === activeStampId ? ' active' : '');
+          const c = document.createElement('canvas');
+          const size = 5;
+          c.width = Math.max(30, st.w * size * 1.55 + 6);
+          c.height = Math.max(30, st.h * size * 1.75 + 6);
+          const cx = c.getContext('2d');
+          cx.fillStyle = '#0d0d1a';
+          cx.fillRect(0, 0, c.width, c.height);
+          for (const [k, color] of st.cells) {
+            const { q, r } = parseKey(k);
+            const { x, y } = hexToPixel(q, r, size);
+            const corners = hexCorners(x + 5, y + 5, size * 0.95);
+            cx.beginPath();
+            cx.moveTo(corners[0].x, corners[0].y);
+            for (let i = 1; i < 6; i++) cx.lineTo(corners[i].x, corners[i].y);
+            cx.closePath();
+            cx.fillStyle = color;
+            cx.fill();
+          }
+          div.appendChild(c);
+          const del = document.createElement('button');
+          del.className = 'del';
+          del.textContent = '×';
+          del.addEventListener('click', ev => {
+            ev.stopPropagation();
+            stamps = stamps.filter(s => s.id !== st.id);
+            if (activeStampId === st.id) {
+              activeStampId = stamps[0]?.id || null;
+              document.getElementById('stampPreview').style.display = activeStampId ? 'block' : 'none';
+            }
+            renderStampList();
+          });
+          div.appendChild(del);
+          div.addEventListener('click', () => {
+            activeStampId = st.id;
+            setTool('stamp');
+            renderStampList();
+            document.getElementById('stampPreview').style.display = 'block';
+            drawStampPreview(st);
+          });
+          list.appendChild(div);
+        });
+      });
+    }
+
+    // ========== Paint ==========
+    function paintHex(q, r) {
+      const k = key(q, r);
+      if (tool === 'pencil') {
+        if (cells.get(k) !== currentColor) cells.set(k, currentColor);
+      } else if (tool === 'eraser') {
+        cells.delete(k);
+      } else if (tool === 'eyedropper') {
+        const c = cells.get(k);
+        if (c) setColor(c);
+      }
+    }
+
+    function floodFill(sq, sr, target, fill) {
+      if (target === fill) return;
+      const stack = [{ q: sq, r: sr }];
+      const visited = new Set();
+      const dirs = [
+        { dq: 1, dr: 0 }, { dq: 1, dr: -1 }, { dq: 0, dr: -1 },
+        { dq: -1, dr: 0 }, { dq: -1, dr: 1 }, { dq: 0, dr: 1 }
+      ];
+      let n = 0;
+      while (stack.length && n < 10000) {
+        const { q, r } = stack.pop();
+        const k = key(q, r);
+        if (visited.has(k)) continue;
+        visited.add(k);
+        const col = cells.get(k) || null;
+        if (col !== target) continue;
+        n++;
+        if (fill === null) cells.delete(k);
+        else cells.set(k, fill);
+        for (const d of dirs) stack.push({ q: q + d.dq, r: r + d.dr });
+      }
+    }
+
+    function placeStamp(atQ, atR) {
+      const st = stamps.find(s => s.id === activeStampId);
+      if (!st) return;
+      pushHistory();
+      for (const [k, color] of st.cells) {
+        const { q, r } = parseKey(k);
+        cells.set(key(atQ + q, atR + r), color);
+      }
+      draw();
+    }
+
+    // ========== Gestures ==========
+    function getHexFromEvent(e) {
+      const world = screenToWorld(e.clientX, e.clientY);
+      return pixelToHex(world.x, world.y, hexSize);
+    }
+
+    function onPointerDown(e) {
+      e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 2) {
+        isDrawing = false;
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+        pinchStart = { dist, zoom, midX, midY, camX, camY };
+        return;
+      }
+
+      if (pointers.size === 1) {
+        const hex = getHexFromEvent(e);
+
+        if (tool === 'select') {
+          selectStart = hex;
+          selectEnd = hex;
+          selection = computeSelectionSet(selectStart, selectEnd);
+          updateStampButtons();
+          isDrawing = true;
+          draw();
+          return;
+        }
+
+        if (tool === 'stamp' && activeStampId != null) {
+          placeStamp(hex.q, hex.r);
+          return;
+        }
+
+        if (tool === 'fill') {
+          pushHistory();
+          const target = cells.get(key(hex.q, hex.r)) || null;
+          floodFill(hex.q, hex.r, target, currentColor);
+          draw();
+          return;
+        }
+
+        if (tool === 'eyedropper') {
+          paintHex(hex.q, hex.r);
+          return;
+        }
+
+        isDrawing = true;
+        lastHex = null;
+        pushHistory();
+        paintHex(hex.q, hex.r);
+        lastHex = hex;
+        draw();
+      }
+    }
+
+    function onPointerMove(e) {
+      e.preventDefault();
+      if (!pointers.has(e.pointerId)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (pointers.size === 2 && pinchStart) {
+        const pts = [...pointers.values()];
+        const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+        const midX = (pts[0].x + pts[1].x) / 2;
+        const midY = (pts[0].y + pts[1].y) / 2;
+        const scale = dist / (pinchStart.dist || 1);
+        let newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStart.zoom * scale));
+        const worldBefore = {
+          x: (pinchStart.midX - pinchStart.camX) / pinchStart.zoom,
+          y: (pinchStart.midY - pinchStart.camY) / pinchStart.zoom
+        };
+        camX = midX - worldBefore.x * newZoom;
+        camY = midY - worldBefore.y * newZoom;
+        zoom = newZoom;
+        draw();
+        return;
+      }
+
+      if (pointers.size === 1 && isDrawing) {
+        const hex = getHexFromEvent(e);
+        if (tool === 'select') {
+          selectEnd = hex;
+          selection = computeSelectionSet(selectStart, selectEnd);
+          updateStampButtons();
+          draw();
+          return;
+        }
+        if (tool === 'pencil' || tool === 'eraser') {
+          if (lastHex && lastHex.q === hex.q && lastHex.r === hex.r) return;
+          paintHex(hex.q, hex.r);
+          lastHex = hex;
+          draw();
+        }
+      }
+    }
+
+    function onPointerUp(e) {
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size === 0) {
+        isDrawing = false;
+        lastHex = null;
+        if (tool === 'select' && selectStart && selectEnd) {
+          selection = computeSelectionSet(selectStart, selectEnd);
+          updateStampButtons();
+        }
+      }
+    }
+
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const world = { x: (mx - camX) / zoom, y: (my - camY) / zoom };
+      const factor = e.deltaY < 0 ? 1.12 : 0.89;
+      zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom * factor));
+      camX = mx - world.x * zoom;
+      camY = my - world.y * zoom;
+      draw();
+    }, { passive: false });
+
+    canvas.addEventListener('pointerdown', onPointerDown);
+    canvas.addEventListener('pointermove', onPointerMove);
+    canvas.addEventListener('pointerup', onPointerUp);
+    canvas.addEventListener('pointercancel', onPointerUp);
+    canvas.addEventListener('pointerleave', e => {
+      if (pointers.has(e.pointerId)) onPointerUp(e);
+    });
+
+    canvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+    canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+
+    function exportPNG() {
+      if (cells.size === 0) { alert('Nothing to export.'); return; }
+      let minQ = Infinity, minR = Infinity, maxQ = -Infinity, maxR = -Infinity;
+      for (const k of cells.keys()) {
+        const { q, r } = parseKey(k);
+        minQ = Math.min(minQ, q); minR = Math.min(minR, r);
+        maxQ = Math.max(maxQ, q); maxR = Math.max(maxR, r);
+      }
+      minQ--; minR--; maxQ++; maxR++;
+      const pad = hexSize * 2;
+      const p0 = hexToPixel(minQ, minR, hexSize);
+      const p1 = hexToPixel(maxQ, maxR, hexSize);
+      const width = Math.ceil(p1.x - p0.x + pad * 2);
+      const height = Math.ceil(p1.y - p0.y + pad * 2 + hexSize);
+
+      const off = document.createElement('canvas');
+      off.width = width; off.height = height;
+      const ox = off.getContext('2d');
+      ox.fillStyle = '#0d0d1a';
+      ox.fillRect(0, 0, width, height);
+
+      for (const [k, color] of cells) {
+        const { q, r } = parseKey(k);
+        const { x, y } = hexToPixel(q, r, hexSize);
+        const cx = x - p0.x + pad;
+        const cy = y - p0.y + pad;
+        const corners = hexCorners(cx, cy, hexSize * 0.97);
+        ox.beginPath();
+        ox.moveTo(corners[0].x, corners[0].y);
+        for (let i = 1; i < 6; i++) ox.lineTo(corners[i].x, corners[i].y);
+        ox.closePath();
+        ox.fillStyle = color;
+        ox.fill();
+      }
+
+      const link = document.createElement('a');
+      link.download = `hexel-art-${Date.now()}.png`;
+      link.href = off.toDataURL('image/png');
+      link.click();
+    }
+
+    // Init
+    history = [new Map()];
+    historyIndex = 0;
+    setTimeout(() => {
+      resizeCanvas();
+      camX = canvas.clientWidth / 2;
+      camY = canvas.clientHeight / 2;
+      draw();
+    }, 40);
+
+    document.body.addEventListener('touchmove', e => {
+      if (e.target.closest('.sheet') || e.target.closest('.sidebar') || e.target.closest('.mobile-swatches')) return;
+      e.preventDefault();
+    }, { passive: false });
+  </script>
+</body>
+</html>
